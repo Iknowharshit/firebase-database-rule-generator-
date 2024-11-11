@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Firebase Rules Generator</title>
+  <style>
+    body{font-family:sans-serif;margin:0;padding:20px;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100vh;background:#f7f7f7;color:#333;transition:background-color .3s,color .3s}body.dark-mode{background:#121212;color:#fff}h1{font-size:2rem;margin-bottom:30px;text-align:center}button{background:#007bff;color:#fff;padding:12px 20px;font-size:1rem;border:none;border-radius:8px;cursor:pointer;transition:.3s}button:hover{background:#0056b3}button:focus{outline:none}select,input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:1px solid #ccc;font-size:1rem}select:focus,input:focus{border-color:#007bff}pre{background:#333;color:#fff;padding:15px;border-radius:8px;white-space:pre-wrap;margin:15px 0}footer{text-align:center;color:#aaa;font-size:14px;margin-top:20px}.dark-mode footer{color:#ccc}@media screen and (max-width:600px){h1{font-size:1.5rem}button{width:100%}select,input{width:100%}#output{padding:15px;width:100%}}@media screen and (max-width:400px){h1{font-size:1.3rem}button{font-size:.9rem;padding:10px}footer{font-size:12px}}
+  </style>
+</head>
+<body>
+  <button onclick="toggleDarkMode()">🌙 Dark Mode</button>
+  <h1>Firebase Rules Generator</h1>
+  <div><label for="collection">Collection Name:</label><input type="text" id="collection" placeholder="Enter collection name"></div>
+  <div><label for="access-level">Access Level:</label><select id="access-level"><option value="read">Read</option><option value="write">Write</option><option value="read-write">Read-Write</option><option value="create">Create</option><option value="update">Update</option><option value="delete">Delete</option></select></div>
+  <div><label for="auth-required">Authentication Required:</label><select id="auth-required"><option value="authenticated">Authenticated User</option><option value="uid-check">UID Check</option><option value="anonymous">Anonymous User</option><option value="admin">Admin Role</option><option value="email-verified">Email Verified</option><option value="email-matches">Email Matches</option></select></div>
+  <div><button onclick="generateFirebaseRules()">Generate Rules</button></div>
+  <div id="output"><h3>Generated Firebase Rules:</h3><pre id="firebase-rules"></pre><h3>Explanation:</h3><pre id="explanation"></pre></div>
+  <footer>Developed by Harshit Singh</footer>
+  <script>
+    function toggleDarkMode(){document.body.classList.toggle('dark-mode');}
+    function generateFirebaseRules(){
+      const collection = document.getElementById("collection").value.trim(), access = document.getElementById("access-level").value, auth = document.getElementById("auth-required").value;
+      if(!collection){alert("Please enter a collection name.");return;}
+      const rules = generateRules(collection, access, auth);
+      document.getElementById("firebase-rules").textContent = JSON.stringify(rules, null, 2);
+      document.getElementById("explanation").textContent = generateExplanation(rules, access, auth);
+    }
+    function generateRules(collection, access, authRequired){
+      let rule = {rules:{[collection]:{"$itemId":{}}}};
+      const authRule = getAuthRule(authRequired);
+      switch(access){
+        case "read": rule.rules[collection]["$itemId"] = {".read":authRule,".write":"false"}; break;
+        case "write": rule.rules[collection]["$itemId"] = {".read":"false",".write":authRule}; break;
+        case "read-write": rule.rules[collection]["$itemId"] = {".read":authRule,".write":authRule}; break;
+        case "create": rule.rules[collection]["$itemId"] = {".read":authRule,".write":authRule,".create":authRule}; break;
+        case "update": rule.rules[collection]["$itemId"] = {".read":authRule,".write":authRule,".update":authRule}; break;
+        case "delete": rule.rules[collection]["$itemId"] = {".read":authRule,".write":authRule,".delete":authRule}; break;
+      }
+      return rule;
+    }
+    function getAuthRule(authRequired){
+      switch(authRequired){
+        case "authenticated": return "auth != null";
+        case "uid-check": return "$userId === auth.uid";
+        case "anonymous": return "auth == null";
+        case "admin": return "auth.token.admin == true";
+        case "email-verified": return "auth.token.email_verified == true";
+        case "email-matches": return "auth.token.email == 'example@example.com'";
+        default: return "false";
+      }
+    }
+    function generateExplanation(rules, access, authRequired){
+      let explanation = `Firebase Rule for "${access}" access on collection "${rules.rules[Object.keys(rules.rules)[0]]}"\nAuthentication Requirement: ${authRequired}\n\nExplanation:`;
+      switch(access){
+        case "read": explanation += "\n- Allows read access for users matching the authentication rule and prevents write access."; break;
+        case "write": explanation += "\n- Allows write access for users matching the authentication rule and prevents read access."; break;
+        case "read-write": explanation += "\n- Allows both read and write access for users matching the authentication rule."; break;
+        case "create": explanation += "\n- Allows read, write, and create access for users matching the authentication rule."; break;
+        case "update": explanation += "\n- Allows read, write, and update access for users matching the authentication rule."; break;
+        case "delete": explanation += "\n- Allows read, write, and delete access for users matching the authentication rule."; break;
+      }
+      explanation += `\n\nAuthentication Rule: ${getAuthRule(authRequired)}\n\nAuthentication Explanation:`;
+      switch(authRequired){
+        case "authenticated": explanation += "\n- Requires the user to be logged in (authenticated)."; break;
+        case "uid-check": explanation += "\n- Requires the user's UID to match a specific value."; break;
+        case "anonymous": explanation += "\n- Allows access only for anonymous users (not logged in)."; break;
+        case "admin": explanation += "\n- Grants access only to users with admin privileges."; break;
+        case "email-verified": explanation += "\n- Requires the user's email to be verified."; break;
+        case "email-matches": explanation += "\n- Requires the user's email to match a specific address."; break;
+        default: explanation += "\n- No authentication rule is applied."; break;
+      }
+      return explanation;
+    }
+  </script>
+</body>
+</html>
